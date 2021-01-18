@@ -377,13 +377,11 @@ class ContentNegotiationTest {
                         "test",
                         {},
                         headersOf(
-                            HttpHeaders.ContentDisposition,
-                            ContentDisposition(
-                                "form-data",
-                                listOf(
-                                    HeaderValueParam("name", "field1")
+                            HttpHeaders.ContentDisposition, ContentDisposition(
+                                "form-data", listOf(
+                                    HeaderValueParam("name", "field1"))
                                 )
-                            ).toString()
+                            .toString()
                         )
                     )
                 )
@@ -522,6 +520,85 @@ class ContentNegotiationTest {
             addHeader("Accept", "....aa..laa...laa")
         }.let { call ->
             assertEquals(HttpStatusCode.BadRequest, call.response.status())
+        }
+    }
+
+    @Test
+    fun testInstallInSubroute() {
+        val textContentConverter: ContentConverter = textContentConverter
+
+        withTestApplication {
+            application.routing {
+                route("/custom") {
+                    install(ContentNegotiation) {
+                        register(customContentType, customContentConverter)
+                    }
+                    get {
+                        call.respond(Wrapper("CUSTOM"))
+                    }
+                }
+                route("/text") {
+                    install(ContentNegotiation) {
+                        register(ContentType.Text.Plain, textContentConverter)
+                    }
+                    get {
+                        call.respond(Wrapper("TEXT"))
+                    }
+                }
+                get {
+                    call.respond(Wrapper("ROOT"))
+                }
+            }
+
+            // Accept: application/ktor to /custom
+            handleRequest(HttpMethod.Get, "/custom") {
+                addHeader(HttpHeaders.Accept, customContentType.toString())
+            }.let { call ->
+                assertEquals(HttpStatusCode.OK, call.response.status())
+                assertEquals(customContentType, call.response.contentType().withoutParameters())
+                assertEquals("[CUSTOM]", call.response.content)
+            }
+
+            // Accept: text/plain to /custom
+            handleRequest(HttpMethod.Get, "/custom") {
+                addHeader(HttpHeaders.Accept, ContentType.Text.Plain.toString())
+            }.let { call ->
+                assertEquals(HttpStatusCode.NotAcceptable, call.response.status())
+            }
+
+            // Accept: application/ktor to /text
+            handleRequest(HttpMethod.Get, "/text") {
+                addHeader(HttpHeaders.Accept, customContentType.toString())
+            }.let { call ->
+                assertEquals(HttpStatusCode.NotAcceptable, call.response.status())
+            }
+
+            // Accept: text/* to /text
+            handleRequest(HttpMethod.Get, "/text") {
+                addHeader(HttpHeaders.Accept, ContentType.Text.Any.toString())
+            }.let { call ->
+                assertEquals(HttpStatusCode.OK, call.response.status())
+                assertEquals(ContentType.Text.Plain, call.response.contentType().withoutParameters())
+                assertEquals("TEXT", call.response.content)
+            }
+
+            // Accept: application/ktor to /
+            assertFailsWith<IllegalArgumentException> {
+                handleRequest(HttpMethod.Get, "/") {
+                    addHeader(HttpHeaders.Accept, customContentType.toString())
+                }
+            }.let { cause ->
+                assertTrue(cause.message!!.startsWith("Response pipeline couldn't transform"))
+            }
+
+            // Accept: application/ktor to /
+            assertFailsWith<IllegalArgumentException> {
+                handleRequest(HttpMethod.Get, "/") {
+                    addHeader(HttpHeaders.Accept, customContentType.toString())
+                }
+            }.let { cause ->
+                assertTrue(cause.message!!.startsWith("Response pipeline couldn't transform"))
+            }
         }
     }
 }

@@ -45,10 +45,7 @@ public data class ContentTypeWithQuality(val contentType: ContentType, val quali
  *
  * @param registrations is a list of registered converters for ContentTypes
  */
-public class ContentNegotiation(
-    public val registrations: List<ConverterRegistration>,
-    private val acceptContributors: List<AcceptHeaderContributor>
-) {
+public class ContentNegotiation {
 
     /**
      * Specifies which [converter] to use for a particular [contentType]
@@ -94,15 +91,11 @@ public class ContentNegotiation(
     /**
      * Implementation of an [ApplicationFeature] for the [ContentNegotiation]
      */
-    public companion object Feature : ApplicationFeature<ApplicationCallPipeline, Configuration, ContentNegotiation> {
+    public companion object Feature : DynamicConfigFeature<ApplicationCallPipeline, Configuration, ContentNegotiation> {
         override val key: AttributeKey<ContentNegotiation> = AttributeKey("ContentNegotiation")
 
-        override fun install(
-            pipeline: ApplicationCallPipeline,
-            configure: Configuration.() -> Unit
-        ): ContentNegotiation {
-            val configuration = Configuration().apply(configure)
-            val feature = ContentNegotiation(configuration.registrations, configuration.acceptContributors)
+        override fun install(pipeline: ApplicationCallPipeline): ContentNegotiation {
+            val feature = ContentNegotiation()
 
             // Respond with "415 Unsupported Media Type" if content cannot be transformed on receive
             pipeline.intercept(ApplicationCallPipeline.Features) {
@@ -127,18 +120,22 @@ public class ContentNegotiation(
                     )
                 }
 
-                val acceptItems = feature.acceptContributors.fold(acceptHeader) { acc, e ->
-                    e(call, acc)
-                }.distinct().sortedByQuality()
+                val configuration = Configuration().apply(configurationBlock)
+                val acceptItems = configuration.acceptContributors
+                    .fold(acceptHeader) { acc, e -> e(call, acc) }
+                    .distinct()
+                    .sortedByQuality()
 
                 val suitableConverters = if (acceptItems.isEmpty()) {
                     // all converters are suitable since client didn't indicate what it wants
-                    feature.registrations
+                    configuration.registrations
                 } else {
                     // select converters that match specified Accept header, in order of quality
-                    acceptItems.flatMap { (contentType, _) ->
-                        feature.registrations.filter { it.contentType.match(contentType) }
-                    }.distinct()
+                    acceptItems
+                        .flatMap { (contentType, _) ->
+                            configuration.registrations.filter { it.contentType.match(contentType) }
+                        }
+                        .distinct()
                 }
 
                 // Pick the first one that can convert the subject successfully
@@ -165,9 +162,10 @@ public class ContentNegotiation(
                         parseFailure
                     )
                 }
-                val suitableConverter =
-                    feature.registrations.firstOrNull { converter -> requestContentType.match(converter.contentType) }
-                        ?: throw UnsupportedMediaTypeException(requestContentType)
+                val configuration = Configuration().apply(configurationBlock)
+                val suitableConverter = configuration.registrations
+                    .firstOrNull { converter -> requestContentType.match(converter.contentType) }
+                    ?: throw UnsupportedMediaTypeException(requestContentType)
 
                 val converted = suitableConverter.converter.convertForReceive(this)
                     ?: throw UnsupportedMediaTypeException(requestContentType)
