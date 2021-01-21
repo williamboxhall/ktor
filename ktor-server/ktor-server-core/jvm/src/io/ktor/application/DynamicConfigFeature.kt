@@ -18,23 +18,39 @@ public fun <A : Pipeline<*, ApplicationCall>, B : Any, F : Any> A.feature(featur
     return findFeatureInRoute(feature) ?: throw MissingApplicationFeatureException(feature.key)
 }
 
+/**
+ * Defines an installable Application Feature that can be installed and configured on subroutes
+ * @param TPipeline is the type of the pipeline this feature is compatible with
+ * @param TConfiguration is the type for the configuration object for this Feature
+ * @param TFeature is the type for the instance of the Feature object
+ */
 public interface DynamicConfigFeature<in TPipeline : Pipeline<*, ApplicationCall>, TConfiguration : Any, TFeature : Any> :
     ApplicationFeature<TPipeline, TConfiguration, TFeature> {
 
+    /**
+     * Unique key that identifies a feature configuration
+     */
     public val configKey: AttributeKey<TConfiguration.() -> Unit>
         get() = AttributeKey("${key.name}_configBuilder")
 
     @Deprecated(
         "This feature can change it's configurations by calling `config` function in routing. " +
-            "To get latest config please use `getConfiguration` function inside call interceptor.",
-        replaceWith = ReplaceWith("install")
+            "To get latest config please use `configurationBlock` property inside call interceptor.",
+        replaceWith = ReplaceWith("install"),
+        level = DeprecationLevel.ERROR
     )
     public override fun install(pipeline: TPipeline, configure: TConfiguration.() -> Unit): TFeature {
         return install(pipeline)
     }
 
+    /**
+     * Feature installation script
+     */
     public fun install(pipeline: TPipeline): TFeature
 
+    /**
+     * Block to initialize [TConfiguration] inside call interceptor
+     */
     public val PipelineContext<*, ApplicationCall>.configurationBlock: (TConfiguration.() -> Unit)
         get() = call.attributes[configKey]
 }
@@ -75,7 +91,9 @@ private fun <P : Pipeline<*, ApplicationCall>, B : Any, F : Any> P.findFeatureIn
     while (current != null) {
         val registry = current.attributes.computeIfAbsent(featureRegistryKey) { Attributes(true) }
         val installedFeature = registry.getOrNull(feature.key)
-        if (installedFeature != null) return installedFeature
+        if (installedFeature != null) {
+            return installedFeature
+        }
         current = current.parent
     }
     return null
