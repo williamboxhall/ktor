@@ -42,10 +42,17 @@ public data class ContentTypeWithQuality(val contentType: ContentType, val quali
  *
  * * https://tools.ietf.org/html/rfc7231#section-5.3
  * * https://developer.mozilla.org/en-US/docs/Web/HTTP/Content_negotiation
- *
- * @param registrations is a list of registered converters for ContentTypes
  */
-public class ContentNegotiation {
+public class ContentNegotiation internal constructor() {
+
+    @Deprecated("This will be removed", level = DeprecationLevel.ERROR)
+    public constructor(
+        registrations: List<ConverterRegistration>,
+        acceptContributors: List<AcceptHeaderContributor>
+    ) : this()
+
+    @Deprecated("This will be removed", level = DeprecationLevel.ERROR)
+    public val registrations: List<ConverterRegistration> = emptyList()
 
     /**
      * Specifies which [converter] to use for a particular [contentType]
