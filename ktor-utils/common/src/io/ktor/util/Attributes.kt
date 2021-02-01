@@ -10,7 +10,26 @@ package io.ktor.util
  * @param name is a name of the attribute for diagnostic purposes
  */
 public class AttributeKey<T>(public val name: String) {
-    override fun toString(): String = if (name.isEmpty()) super.toString() else "AttributeKey: $name"
+
+    override fun toString(): String = when {
+        name.isEmpty() -> super.toString()
+        else -> "AttributeKey: $name"
+    }
+
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (other == null || this::class != other::class) return false
+
+        other as AttributeKey<*>
+
+        if (name != other.name) return false
+
+        return true
+    }
+
+    override fun hashCode(): Int {
+        return name.hashCode()
+    }
 }
 
 /**

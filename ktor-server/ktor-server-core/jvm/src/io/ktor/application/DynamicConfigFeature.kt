@@ -49,7 +49,7 @@ public interface DynamicConfigFeature<in TPipeline : Pipeline<*, ApplicationCall
     public fun install(pipeline: TPipeline): TFeature
 
     /**
-     * Block to initialize [TConfiguration] inside call interceptor
+     * Block that initializes [TConfiguration] inside call interceptor
      */
     public val PipelineContext<*, ApplicationCall>.configurationBlock: (TConfiguration.() -> Unit)
         get() = call.attributes[configKey]
@@ -80,7 +80,6 @@ public fun <P : Pipeline<*, ApplicationCall>, B : Any, F : Any> P.install(
     val installed = feature.install(installPipeline)
     val registry = installPipeline.attributes.computeIfAbsent(featureRegistryKey) { Attributes(true) }
     registry.put(feature.key, installed)
-    //environment.log.trace("`${feature.name}` feature was installed successfully.")
     return installed
 }
 
