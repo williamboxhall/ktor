@@ -45,13 +45,13 @@ public data class ContentTypeWithQuality(val contentType: ContentType, val quali
  */
 public class ContentNegotiation internal constructor() {
 
-    @Deprecated("This will be removed", level = DeprecationLevel.ERROR)
+    @Deprecated("This will be removed")
     public constructor(
         registrations: List<ConverterRegistration>,
         acceptContributors: List<AcceptHeaderContributor>
     ) : this()
 
-    @Deprecated("This will be removed", level = DeprecationLevel.ERROR)
+    @Deprecated("This will be removed")
     public val registrations: List<ConverterRegistration> = emptyList()
 
     /**

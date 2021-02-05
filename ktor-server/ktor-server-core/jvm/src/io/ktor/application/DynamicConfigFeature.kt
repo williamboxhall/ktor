@@ -31,7 +31,7 @@ public interface DynamicConfigFeature<in TPipeline : Pipeline<*, ApplicationCall
      * Unique key that identifies a feature configuration
      */
     public val configKey: AttributeKey<TConfiguration.() -> Unit>
-        get() = AttributeKey("${key.name}_configBuilder")
+        get() = EquatableAttributeKey("${key.name}_configBuilder")
 
     @Deprecated(
         "This feature can change it's configurations by calling `config` function in routing. " +
@@ -78,7 +78,7 @@ public fun <P : Pipeline<*, ApplicationCall>, B : Any, F : Any> P.install(
         else -> this
     }
     val installed = feature.install(installPipeline)
-    val registry = installPipeline.attributes.computeIfAbsent(featureRegistryKey) { Attributes(true) }
+    val registry = installPipeline.featureRegistry
     registry.put(feature.key, installed)
     return installed
 }
@@ -88,7 +88,7 @@ private fun <P : Pipeline<*, ApplicationCall>, B : Any, F : Any> P.findFeatureIn
 ): F? {
     var current: Route? = this as? Route
     while (current != null) {
-        val registry = current.attributes.computeIfAbsent(featureRegistryKey) { Attributes(true) }
+        val registry = current.featureRegistry
         val installedFeature = registry.getOrNull(feature.key)
         if (installedFeature != null) {
             return installedFeature
