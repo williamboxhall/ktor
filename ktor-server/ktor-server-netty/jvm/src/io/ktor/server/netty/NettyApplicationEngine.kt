@@ -125,7 +125,12 @@ public class NettyApplicationEngine(
         environment.connectors.map { connector ->
             ServerBootstrap().apply {
                 configuration.configureBootstrap(this)
-                group(connectionEventGroup, workerEventGroup)
+
+                val conf = config()
+                if (conf.group() == null && conf.childGroup() == null) {
+                    group(connectionEventGroup, workerEventGroup)
+                }
+
                 channel(connectionEventGroup.channel.java)
                 childHandler(
                     NettyChannelInitializer(
